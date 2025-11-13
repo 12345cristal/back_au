@@ -329,3 +329,132 @@ def eliminar_personal(
     db.delete(personal)
     db.commit()
     return {"status": "ok"}
+# ============================================================
+# PUT – EDITAR PERSONAL COMPLETO
+# ============================================================
+
+@router.put("/{id_personal}", status_code=200)
+async def editar_personal(
+    id_personal: int,
+
+    # Usuario
+    nombre: str = Form(...),
+    apellido_paterno: str = Form(""),
+    apellido_materno: str = Form(""),
+    correo: str = Form(...),
+    telefono: str = Form(""),
+    id_rol: int = Form(...),
+
+    # Personal
+    fecha_nacimiento: Optional[str] = Form(None),
+    fecha_ingreso: Optional[str] = Form(None),
+    id_grado: Optional[int] = Form(None),
+    especialidades: str = Form(""),
+    telefono_personal: str = Form(""),
+    correo_personal: str = Form(""),
+    rfc: str = Form(""),
+    ine: str = Form(""),
+    curp: str = Form(""),
+    domicilio_calle: str = Form(""),
+    domicilio_colonia: str = Form(""),
+    domicilio_cp: str = Form(""),
+    domicilio_municipio: str = Form(""),
+    domicilio_estado: str = Form(""),
+    experiencia: str = Form(""),
+
+    # Archivos opcionales
+    foto_perfil: UploadFile | None = File(None),
+    cv_archivo: UploadFile | None = File(None),
+    comprobante_domicilio: UploadFile | None = File(None),
+
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_role(["Administrador", "Coordinador"]))
+):
+
+    personal = db.query(Personal).filter(Personal.id_personal == id_personal).first()
+    if not personal:
+        raise HTTPException(404, "Personal no encontrado")
+
+    user = personal.usuario
+
+    # ===========================================
+    # VALIDACIONES
+    # ===========================================
+
+    # Validar rol
+    if not db.query(Rol).filter(Rol.id_rol == id_rol).first():
+        raise HTTPException(400, "Rol inválido")
+
+    # Validar grado académico
+    if id_grado:
+        if not db.query(GradoAcademico).filter(GradoAcademico.id_grado == id_grado).first():
+            raise HTTPException(400, "Grado académico inválido")
+
+    # Correo duplicado (excepto el mismo usuario)
+    correo_existente = db.query(Usuario).filter(
+        Usuario.correo == correo,
+        Usuario.id_usuario != user.id_usuario
+    ).first()
+
+    if correo_existente:
+        raise HTTPException(400, "Ya existe un usuario con ese correo")
+
+    # ===========================================
+    # GUARDAR ARCHIVOS SOLO SI LOS CAMBIA
+    # ===========================================
+
+    if foto_perfil:
+        user.foto_perfil = save_upload_file(foto_perfil, FOTOS_DIR, f"foto_{correo}")
+
+    if cv_archivo:
+        personal.cv_archivo = save_upload_file(cv_archivo, CV_DIR, f"cv_{correo}")
+
+    if comprobante_domicilio:
+        personal.comprobante_domicilio = save_upload_file(
+            comprobante_domicilio, COMP_DIR, f"comp_{correo}"
+        )
+
+    # ===========================================
+    # PARSEO SEGURO DE FECHAS
+    # ===========================================
+
+    def parse_date(value):
+        try:
+            return datetime.fromisoformat(value).date() if value else None
+        except:
+            return None
+
+    # ===========================================
+    # ACTUALIZAR USUARIO
+    # ===========================================
+
+    user.nombre = nombre
+    user.apellido_paterno = apellido_paterno or None
+    user.apellido_materno = apellido_materno or None
+    user.correo = correo
+    user.telefono = telefono or None
+    user.id_rol = id_rol
+
+    # ===========================================
+    # ACTUALIZAR PERSONAL
+    # ===========================================
+
+    personal.fecha_nacimiento = parse_date(fecha_nacimiento)
+    personal.fecha_ingreso = parse_date(fecha_ingreso)
+    personal.id_grado = id_grado
+    personal.especialidades = especialidades or None
+    personal.telefono_personal = telefono_personal or None
+    personal.correo_personal = correo_personal or None
+    personal.rfc = rfc or None
+    personal.ine = ine or None
+    personal.curp = curp or None
+    personal.domicilio_calle = domicilio_calle or None
+    personal.domicilio_colonia = domicilio_colonia or None
+    personal.domicilio_cp = domicilio_cp or None
+    personal.domicilio_municipio = domicilio_municipio or None
+    personal.domicilio_estado = domicilio_estado or None
+    personal.experiencia = experiencia or None
+
+    db.commit()
+
+    return {"mensaje": "Personal actualizado correctamente"}
