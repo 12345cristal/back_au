@@ -1,5 +1,7 @@
+# schemas/personal.py
 from pydantic import BaseModel
 from typing import Optional
+
 
 class PersonalBase(BaseModel):
     id_usuario: int
@@ -17,6 +19,7 @@ class PersonalBase(BaseModel):
     domicilio_estado: Optional[str]
     experiencia: Optional[str]
 
+
 class PersonalListItem(BaseModel):
     id_personal: int
     nombre: str
@@ -30,6 +33,7 @@ class PersonalListItem(BaseModel):
     class Config:
         from_attributes = True
 
+
 class PersonalDetalle(BaseModel):
     id_personal: int
     id_usuario: int
@@ -41,6 +45,11 @@ class PersonalDetalle(BaseModel):
     rol: str
     foto_perfil: Optional[str]
     activo: bool
+
+    # ⚠️ SOLO incluye esto si tu SELECT lo devuelve
+    # id_rol: int
+    # id_grado: Optional[int]
+
     fecha_nacimiento: Optional[str]
     fecha_ingreso: Optional[str]
     grado_academico: Optional[str]
